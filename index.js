@@ -965,7 +965,7 @@ function returnId(transactions) {
 
 
 function merkleRoot(txids) {
-    txIds = txids.reverse();
+    txids = txids.reverse();
     let hashes = txids.map(txid => Buffer.from(txid, 'hex'));
 
     while (hashes.length > 1) {
