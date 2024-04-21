@@ -972,13 +972,12 @@ function merkleRoot(txids) {
             hashes.push(hashes[hashes.length - 1]);
         }
         
-        const newHashes = [];
-        for (let i = 0; i < hashes.length; i += 2) {
-            const combinedHash = Buffer.concat([hashes[i], hashes[i + 1]]);
-            const doubleHash = doubleSha256(combinedHash);
-            newHashes.push(doubleHash);
-        }
-        hashes = newHashes;
+        hashes = hashes.reduce((acc, _, i, arr) => {
+            if (i % 2 === 0) {
+                acc.push(doubleSha256(Buffer.concat([arr[i], arr[i + 1]])));
+            }
+            return acc;
+        }, []);
     }
 
     return hashes[0].toString('hex');
@@ -1097,8 +1096,6 @@ const BLOCK_HEIGHT = 840000;
 const SUBSIDY = 3.125 * 100000000;
 
 const transactions = processMempoolFromFiles();
-
-console.log(transactions)
 
 const best_tranaction_from_block = bestTransactionsForBlock(transactions);
 const bestTransactions = best_tranaction_from_block.selectedTransactions;
