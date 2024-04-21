@@ -6,7 +6,6 @@ const bech32 = require('bech32');
 
 
 const mempool_dir = 'mempool';
-const target_difficulty = "0000ffff00000000000000000000000000000000000000000000000000000000"
 
 
 function ripemd160_conversion(data) {
@@ -60,67 +59,64 @@ function Transaction_validation(transaction) {
     return true;
 }
 
-
 function processMempoolFromFiles() {
+    const MEMPOOL_DIR = 'mempool'; 
     const validTransactions = [];
-    const files = fs.readdirSync(mempool_dir);
 
-    files.forEach(filename => {
-        const filepath = path.join(mempool_dir, filename);
-        const transaction = JSON.parse(fs.readFileSync(filepath, 'utf8'));
+    const files = fs.readdirSync(MEMPOOL_DIR);
+    for (const filename of files) {
+        const filepath = path.join(MEMPOOL_DIR, filename);
+        const data = fs.readFileSync(filepath, 'utf8');
+        const transaction = JSON.parse(data);
 
-        if (Locktime_validaion(transaction) && Transaction_validation(transaction)) {
-            let valid = true;
-            transaction.vin.forEach((vin, index) => {
+        if (Locktime_validaion(transaction) || Transaction_validation(transaction)) {
+            let valid = 1;
+            for (let index = 0; index < transaction.vin.length; index++) {
+                const vin = transaction.vin[index];
                 try {
-                    switch (vin.prevout.scriptpubkey_type) {
-                        case 'p2pkh':
-                            if (!verifyP2PKHTransaction(vin, transaction, index)) {
-                                valid = false;
-                                return;
+                    if (vin.prevout.scriptpubkey_type === 'p2pkh') {
+                        if (!verifyP2PKHTransaction(vin, transaction, index)) {
+                            valid = 0;
+                            break;
+                        }
+                    } else if (vin.prevout.scriptpubkey_type === 'v0_p2wpkh') {
+                        if (!verifyP2WPKHTransaction(vin, transaction, index)) {
+                            valid = 0;
+                            break;
+                        }
+                    } else if (vin.prevout.scriptpubkey_type === 'v0_p2wsh') {
+                        if (!verifyP2WSHTx(vin, transaction, index)) {
+                            valid = 0;
+                            break;
+                        }
+                    } else if (vin.prevout.scriptpubkey_type === 'p2sh') {
+                        if (vin.witness) {
+                            if (!verifyP2SHP2WPKHTransaction(vin, transaction, index)) {
+                                valid = 0;
+                                break;
                             }
-                            break;
-                        case 'v0_p2wpkh':
-                            if (!verifyP2WPKHTransaction(vin, transaction, index)) {
-                                valid = false;
-                                return;
+                        } else {
+                            if (!verifyP2SHTransaction(vin, transaction, index)) {
+                                valid = 0;
+                                break;
                             }
-                            break;
-                        case 'v0_p2wsh':
-                            if (!verifyP2WSHTx(vin, transaction, index)) {
-                                valid = false;
-                                return;
-                            }
-                            break;
-                        case 'p2sh':
-                            if (vin.witness) {
-                                if (!verifyP2SHP2WPKHTransaction(vin, transaction, index)) {
-                                    valid = false;
-                                    return;
-                                }
-                            } else {
-                                if (!verifyP2SHTransaction(vin, transaction, index)) {
-                                    valid = false;
-                                    return;
-                                }
-                            }
-                            break;
-                        default:
-                            break;
+                        }
+                    } else {
+                        continue;
                     }
-                } catch (error) {
-                    valid = false;
-                    return;
+                } catch (e) {
+                    valid = 0;
+                    break;
                 }
-            });
+            }
             if (valid) {
                 validTransactions.push(transaction);
             }
         }
-    });
-
+    }
     return validTransactions;
 }
+
 
 function areInputsGreaterThanOutputs(transaction) {
     let totalInputValue = 0;
@@ -827,62 +823,65 @@ function calculateTransactionWeight(tx) {
     let nonWitnessBytes = 0;
     let witnessBytes = 0;
 
-    const txType = tx.vin.some(vin => 'witness' in vin) ? "SEGWIT" : "LEGACY";
+    const txType = tx.vin.some(vin => 'witness' in vin) ? 'SEGWIT' : 'LEGACY';
 
-    if (txType === "LEGACY") {
-        nonWitnessBytes += 4;
+    if (txType === 'LEGACY') {
+        nonWitnessBytes += 4; // VERSION
 
         if (tx.vin.length >= 50) {
             throw new Error("Too many inputs");
         }
-        nonWitnessBytes += 1;
+
+        nonWitnessBytes += 1; // INPUT COUNT
+
         for (const input of tx.vin) {
-            nonWitnessBytes += 32;
-            nonWitnessBytes += 4;
+            nonWitnessBytes += 32; // TXID
+            nonWitnessBytes += 4; // VOUT
             const scriptSig = Buffer.from(input.scriptsig || '', 'hex');
-            nonWitnessBytes += 1 + scriptSig.length;
-            nonWitnessBytes += 4;
+            nonWitnessBytes += 1 + scriptSig.length; // SCRIPTSIG
+            nonWitnessBytes += 4; // SEQUENCE
         }
 
         if (tx.vout.length >= 50) {
             throw new Error("Too many outputs");
         }
-        nonWitnessBytes += 1;
+
+        nonWitnessBytes += 1; // OUTPUT COUNT
 
         for (const output of tx.vout) {
-            nonWitnessBytes += 8;
+            nonWitnessBytes += 8; // VALUE
             const scriptPubKey = Buffer.from(output.scriptpubkey, 'hex');
-            nonWitnessBytes += 1 + scriptPubKey.length;
+            nonWitnessBytes += 1 + scriptPubKey.length; // SCRIPTPUBKEY
         }
-        nonWitnessBytes += 4;
+
+        nonWitnessBytes += 4; // LOCKTIME
     } else {
-        nonWitnessBytes += 4;
+        nonWitnessBytes += 4; // VERSION
+        witnessBytes += 2; // MARKER and FLAG (witness data)
 
-        witnessBytes += 2;
-
-        if (tx.vin.length >= 50) {
+        if (tx.vin.length >= 100) {
             throw new Error("Too many inputs");
         }
 
-        nonWitnessBytes += 1;
+        nonWitnessBytes += 1; // INPUT COUNT
 
         for (const input of tx.vin) {
-            nonWitnessBytes += 32 + 4;
-
+            nonWitnessBytes += 32 + 4; // TXID and VOUT
             const scriptSig = Buffer.from(input.scriptsig || '', 'hex');
-            nonWitnessBytes += 1 + scriptSig.length;
-
-            nonWitnessBytes += 4;
+            nonWitnessBytes += 1 + scriptSig.length; // SCRIPTSIG
+            nonWitnessBytes += 4; // SEQUENCE
         }
 
         if (tx.vout.length >= 255) {
             throw new Error("Too many outputs");
         }
 
-        nonWitnessBytes += 1;
+        nonWitnessBytes += 1; // OUTPUT COUNT
 
         for (const output of tx.vout) {
-            nonWitnessBytes += 8 + 1 + Buffer.from(output.scriptpubkey, 'hex').length;
+            nonWitnessBytes += 8; // VALUE
+            const scriptPubKey = Buffer.from(output.scriptpubkey, 'hex');
+            nonWitnessBytes += 1 + scriptPubKey.length; // SCRIPTPUBKEY
         }
 
         for (const input of tx.vin) {
@@ -893,13 +892,16 @@ function calculateTransactionWeight(tx) {
             }
         }
 
-        nonWitnessBytes += 4;
+        nonWitnessBytes += 4; // LOCKTIME
     }
 
-    const txWeight = (nonWitnessBytes * 4) + witnessBytes;
+    // Calculate the total weight of the transaction
+    const txWeight = nonWitnessBytes * 4 + witnessBytes;
 
+    // Return the transaction weight
     return txWeight;
 }
+
 
 
 function calculateFees(transaction) {
