@@ -976,8 +976,8 @@ function merkleRoot(txids) {
         const newHashes = [];
         for (let i = 0; i < hashes.length; i += 2) {
             const combinedHash = Buffer.concat([hashes[i], hashes[i + 1]]);
-            const doubleHash = doubleSha256(combinedHash);
-            newHashes.push(doubleHash);
+            const hash = crypto.createHash('sha256').update(combinedHash).digest();
+            newHashes.push(hash);
         }
         hashes = newHashes;
     }
