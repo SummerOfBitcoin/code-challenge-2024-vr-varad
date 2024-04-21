@@ -981,7 +981,7 @@ function merkleRoot(txids) {
         hashes = newHashes;
     }
 
-    return hashes[0]?.toString('hex');
+    return hashes[0].toString('hex');
 }
 
 function witnessCommitment(txs) {
