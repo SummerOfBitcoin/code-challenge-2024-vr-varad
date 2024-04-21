@@ -1081,6 +1081,7 @@ function createBlockHeader(merkleRoot) {
             bitsBytes,
             nonceBytes
         ]);
+        header.writeUInt32LE(version, 0);
         const blockHash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(header).digest()).digest();
 
         if (BigInt('0x' + blockHash.reverse().toString('hex')) < target) {
