@@ -965,6 +965,7 @@ function returnId(transactions) {
 
 
 function merkleRoot(txids) {
+    txIds = txids.reverse();
     let hashes = txids.map(txid => Buffer.from(txid, 'hex'));
 
     while (hashes.length > 1) {
@@ -972,18 +973,19 @@ function merkleRoot(txids) {
             hashes.push(hashes[hashes.length - 1]);
         }
         
-        hashes = hashes.reduce((acc, _, i, arr) => {
-            if (i % 2 === 0) {
-                acc.push(doubleSha256(Buffer.concat([arr[i], arr[i + 1]])));
-            }
-            return acc;
-        }, []);
+        const newHashes = [];
+        for (let i = 0; i < hashes.length; i += 2) {
+            const combinedHash = Buffer.concat([hashes[i], hashes[i + 1]]);
+            const doubleHash = doubleSha256(combinedHash);
+            newHashes.push(doubleHash);
+        }
+        hashes = newHashes;
     }
 
     return hashes[0].toString('hex');
 }
 
-function witnessCommitment(txs) {
+function witnessCommitment(txs) {       
     const root = merkleRoot(txs);
     const reserved = '00'.repeat(32); // 32 bytes of zero
     const combined = root + reserved;
