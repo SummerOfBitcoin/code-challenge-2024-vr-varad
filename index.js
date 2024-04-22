@@ -963,7 +963,7 @@ function returnId(transactions) {
 }
 
 function reverseByteOrder(txids) {
-    return  txids.map(txid => txid.match(/.{2}/g).reverse().join(''));
+    return txids.map(txid => txid.match(/.{2}/g).reverse().join(''));
 }
 
 
@@ -1052,7 +1052,7 @@ function createBlockHeader(merkleRoot) {
     const prevBlockHashBytes = Buffer.from(prevBlockHash, 'hex'); 
 
     const difficultyTarget = '0000ffff00000000000000000000000000000000000000000000000000000000';
-    const bits = 0x1d00ffff;
+    const bits = "1f00ffff";
     const bitsBytes = Buffer.alloc(4);
     bitsBytes.writeUInt32LE(bits, 0);
 
@@ -1063,16 +1063,15 @@ function createBlockHeader(merkleRoot) {
 
     let nonce = 0;
     const target = BigInt('0x' + difficultyTarget);
-
+    const targetBytes = Buffer.alloc(32);
+    
     const MAX_INT64 = BigInt(2) ** BigInt(63) - BigInt(1);
     const MIN_INT64 = -MAX_INT64 - BigInt(1);
 
     if (target >= MIN_INT64 && target <= MAX_INT64) {
-        const targetBuffer = Buffer.alloc(8); // Using 8 bytes for 64-bit integer
-        targetBuffer.writeBigInt64LE(target, 0); // Write target as little-endian 64-bit integer
+        targetBytes.writeBigInt64BE(target, 0);
     } else {
         console.error('Error: Target value is out of range');
-        return;
     }
 
     let header;
@@ -1099,8 +1098,6 @@ function createBlockHeader(merkleRoot) {
     return header.toString('hex');
 }
 
-
-
 const BLOCK_HEIGHT = 840000;
 const SUBSIDY = 3.125 * 100000000;
 
@@ -1119,6 +1116,7 @@ const wid = returned_id.wid;
 
 const [coinbaseTxn, coinbaseId] = coinbase(wid);
 txIds.unshift(coinbaseId);
+
 
 const root = merkleRoot(txIds);
 
