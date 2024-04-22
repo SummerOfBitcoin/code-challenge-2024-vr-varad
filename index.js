@@ -1055,8 +1055,8 @@ function createBlockHeader(merkleRoot) {
     const bits = "1f00ffff";
     const bitsBytes = Buffer.alloc(4);
     bitsBytes.writeUInt32LE(bits, 0);
-
-    const merkleRootBytes = Buffer.from(merkleRoot, 'hex');
+    merkleRoot = merkleRoot.split('').reverse().join('');
+    const merkleRootBytes = Buffer.from(merkleRoot, 'hex').reverse();
     const timestamp = Math.floor(Date.now() / 1000);
     const timestampBytes = Buffer.alloc(4);
     timestampBytes.writeUInt32LE(timestamp, 0);
