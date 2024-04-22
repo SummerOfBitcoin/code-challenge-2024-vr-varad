@@ -962,10 +962,14 @@ function returnId(transactions) {
     return { id, wid };
 }
 
+function reverseByteOrder(txids) {
+    return txids.map(txid => txid.match(/.{2}/g).reverse().join(''));
+}
+
 
 
 function merkleRoot(txids) {
-    txids = txids.reverse();
+    txids = reverseByteOrder(txids);
     let hashes = txids.map(txid => Buffer.from(txid, 'hex'));
 
     while (hashes.length > 1) {
