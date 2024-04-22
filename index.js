@@ -1048,7 +1048,7 @@ function coinbase(txs) {
 
 function createBlockHeader(merkleRoot) {
     const version = 0x20000000; 
-    const prevBlockHash = '64' + '00'.repeat(31); 
+    const prevBlockHash = '00'.repeat(32); 
     const prevBlockHashBytes = Buffer.from(prevBlockHash, 'hex'); 
 
     const difficultyTarget = '0000ffff00000000000000000000000000000000000000000000000000000000';
