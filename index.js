@@ -963,63 +963,38 @@ function returnId(transactions) {
 }
 
 function hash256(hex) {
-    const binary = Buffer.from(hex, 'hex');
-    const hash1 = crypto.createHash('sha256').update(binary).digest();
+    const hash1 = crypto.createHash('sha256').update(hex, 'hex').digest();
     const hash2 = crypto.createHash('sha256').update(hash1).digest();
     return hash2.toString('hex');
 }
 
-// function merkleRoot(txids) {
-//     txids = txids.reverse();
-//     let hashes = txids.map(txid => Buffer.from(txid, 'hex'));
-
-//     while (hashes.length > 1) {
-//         if (hashes.length % 2 === 1) {
-//             hashes.push(hashes[hashes.length - 1]);
-//         }
-        
-//         const newHashes = [];
-//         for (let i = 0; i < hashes.length; i += 2) {
-//             const combinedHash = Buffer.concat([hashes[i], hashes[i + 1]]);
-//             const hash = crypto.createHash('sha256').update(combinedHash).digest();
-//             newHashes.push(hash);
-//         }
-//         hashes = newHashes;
-//     }
-
-//     return hashes[0].toString('hex');
-// }
-
+// Function to calculate the Merkle Root
 function merkleRoot(txids) {
-    if (txids.length === 0) return null;
-    
-    // Function to compute the hash of two concatenated hashes
-    function hashPair(hash1, hash2) {
-        const concatenatedHashes = hash1 + hash2;
-        return crypto.createHash('sha256').update(concatenatedHashes).digest('hex');
+    // Exit Condition: Stop recursion when we have one hash result left
+    if (txids.length === 1) {
+        // Convert the result to a string and return it
+        return txids[0];
     }
 
-    // Reverse each transaction ID in the list
-    let reversedTxids = txids.map(txid => txid.match(/../g).reverse().join(''));
+    // Keep an array of results
+    let result = [];
 
-    // Continue until there's only one hash left
-    while (reversedTxids.length > 1) {
-        const nextTxids = [];
-        // Iterate through the current list by twos
-        for (let i = 0; i < reversedTxids.length; i += 2) {
-            const left = reversedTxids[i];
-            const right = (i + 1 === reversedTxids.length) ? left : reversedTxids[i + 1];
-            // Concatenate two adjacent hashes
-            const combinedHash = hashPair(left, right);
-            // Add the combined hash to the next list
-            nextTxids.push(combinedHash);
+    // Iterate through the current list by twos
+    for (let i = 0; i < txids.length; i += 2) {
+        // Concatenate two adjacent hashes
+        let concat;
+        if (txids[i + 1]) {
+            concat = txids[i] + txids[i + 1];
+        } else {
+            concat = txids[i] + txids[i];
         }
-        // Update current list with the next list for the next iteration
-        reversedTxids = nextTxids;
+
+        // Hash the concatenated pair and add to results array
+        result.push(hash256(concat));
     }
 
-    // Return the root hash
-    return reversedTxids[0];
+    // Recursion: Do the same thing again for these results
+    return merkleRoot(result);
 }
 
 
@@ -1152,7 +1127,9 @@ const wid = returned_id.wid;
 const [coinbaseTxn, coinbaseId] = coinbase(wid);
 txIds.unshift(coinbaseId);
 
-const root = merkleRoot(txIds);
+const reversedTxids = txIds.map(txid => txid.match(/.{2}/g).reverse().join(''));
+
+const root = merkleRoot(reversedTxids);
 console.log(root)
 
 const blockHeader = createBlockHeader(root);
