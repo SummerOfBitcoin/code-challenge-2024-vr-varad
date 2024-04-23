@@ -968,20 +968,14 @@ function hash256(hex) {
     return hash2.toString('hex');
 }
 
-// Function to calculate the Merkle Root
 function merkleRoot(txids) {
-    // Exit Condition: Stop recursion when we have one hash result left
     if (txids.length === 1) {
-        // Convert the result to a string and return it
         return txids[0];
     }
 
-    // Keep an array of results
     let result = [];
 
-    // Iterate through the current list by twos
     for (let i = 0; i < txids.length; i += 2) {
-        // Concatenate two adjacent hashes
         let concat;
         if (txids[i + 1]) {
             concat = txids[i] + txids[i + 1];
@@ -989,11 +983,9 @@ function merkleRoot(txids) {
             concat = txids[i] + txids[i];
         }
 
-        // Hash the concatenated pair and add to results array
         result.push(hash256(concat));
     }
 
-    // Recursion: Do the same thing again for these results
     return merkleRoot(result);
 }
 
@@ -1062,11 +1054,11 @@ function createBlockHeader(merkleRoot) {
     const prevBlockHashBytes = Buffer.from(prevBlockHash, 'hex'); 
 
     const difficultyTarget = '0000ffff00000000000000000000000000000000000000000000000000000000';
-    const bits = "1f00ffff";
+    const bits = 0x1f00ffff;  // Changed here
     const bitsBytes = Buffer.alloc(4);
     bitsBytes.writeUInt32LE(bits, 0);
-    merkleRoot = merkleRoot.split('').reverse().join('');
-    const merkleRootBytes = Buffer.from(merkleRoot, 'hex').reverse();
+
+    const merkleRootBytes = Buffer.from(merkleRoot, 'hex').reverse();  // Changed here
     const timestamp = Math.floor(Date.now() / 1000);
     const timestampBytes = Buffer.alloc(4);
     timestampBytes.writeUInt32LE(timestamp, 0);
@@ -1099,7 +1091,7 @@ function createBlockHeader(merkleRoot) {
         header.writeUInt32LE(version, 0);
         const blockHash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(header).digest()).digest();
 
-        if (BigInt('0x' + blockHash.reverse().toString('hex')) < target) {
+        if (BigInt('0x' + blockHash.toString('hex')) < target) {
             break;
         }
         nonce++;
@@ -1107,6 +1099,7 @@ function createBlockHeader(merkleRoot) {
 
     return header.toString('hex');
 }
+
 
 const BLOCK_HEIGHT = 840000;
 const SUBSIDY = 3.125 * 100000000;
@@ -1130,7 +1123,6 @@ txIds.unshift(coinbaseId);
 const reversedTxids = txIds.map(txid => txid.match(/.{2}/g).reverse().join(''));
 
 const root = merkleRoot(reversedTxids);
-console.log(root)
 
 const blockHeader = createBlockHeader(root);
 
