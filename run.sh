@@ -2,6 +2,4 @@
 
 
 npm install crypto
-npm install ripemd160
-npm install bech32
 node index.js
