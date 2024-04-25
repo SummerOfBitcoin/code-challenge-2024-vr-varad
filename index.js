@@ -560,6 +560,10 @@ function block_mining(timestamp, bits, prevBlock_Hash, result, nonce) {
     prevBlock_HashBytes.writeUInt32LE(blockHeader.prevBlock_Hash);
     serializedBlockHeader.push(...prevBlock_HashBytes);
 
+    const merkleRoot_Bytes = Buffer.alloc(32);
+    merkleRoot_Bytes.writeUInt32LE(blockHeader.result);
+    serializedBlockHeader.push(...merkleRoot_Bytes);
+
     const timestamp_Bytes = Buffer.alloc(4);
     timestamp_Bytes.writeUInt32LE(blockHeader.timestamp);
     serializedBlockHeader.push(...timestamp_Bytes);
