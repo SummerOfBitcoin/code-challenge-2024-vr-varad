@@ -541,50 +541,55 @@ function pre_mined_block() {
 }
 
 function block_mining(timestamp, bits, prevBlock_Hash, result, nonce) {
-
-    const blockHeader = {
-        "version": 0x00000007,
-        "prevBlock_Hash": prevBlock_Hash,
-        "merkleRoot": result,
-        "timestamp": timestamp,
-        "bits": bits,
-        "nonce": nonce
+    while(true){
+        const blockHeader = {
+            "version": 0x00000007,
+            "prevBlock_Hash": prevBlock_Hash,
+            "merkleRoot": result,
+            "timestamp": timestamp,
+            "bits": bits,
+            "nonce": nonce
+        }
+    
+        const serializedBlockHeader = [];
+        const ver_bytes = Buffer.alloc(4);
+        ver_bytes.writeUInt32LE(blockHeader.version);
+        serializedBlockHeader.push(...ver_bytes);
+    
+        const prevBlock_HashBytes = Buffer.alloc(32);
+        prevBlock_HashBytes.writeUInt32LE(blockHeader.prevBlock_Hash);
+        serializedBlockHeader.push(...prevBlock_HashBytes);
+    
+        const merkleRoot_Bytes = Buffer.alloc(32);
+        merkleRoot_Bytes.writeUInt32LE(blockHeader.result);
+        serializedBlockHeader.push(...merkleRoot_Bytes);
+    
+        const timestamp_Bytes = Buffer.alloc(4);
+        timestamp_Bytes.writeUInt32LE(blockHeader.timestamp);
+        serializedBlockHeader.push(...timestamp_Bytes);
+    
+        const bits_bytes = Buffer.alloc(4);
+        bits_bytes.writeUInt32LE(blockHeader.bits);
+        serializedBlockHeader.push(...bits_bytes);
+    
+        const nonce_bytes = Buffer.alloc(4);
+        nonce_bytes.writeUInt32LE(blockHeader.nonce);
+        serializedBlockHeader.push(...nonce_bytes);
+    
+    
+        const serializedBlockHeaderHex = serializedBlockHeader.map(byte => {
+            return byte.toString(16).padStart(2, '0');
+        }
+        ).join('');
+    
+        const blockHeaderHash = doubleSHA256(Buffer.from(serializedBlockHeaderHex, 'hex'));
+    
+        if (blockHeaderHash < bits) {
+            return blockHeaderHash;
+        } else {
+            nonce++;
+        }
     }
-
-    const serializedBlockHeader = [];
-    const ver_bytes = Buffer.alloc(4);
-    ver_bytes.writeUInt32LE(blockHeader.version);
-    serializedBlockHeader.push(...ver_bytes);
-
-    const prevBlock_HashBytes = Buffer.alloc(32);
-    prevBlock_HashBytes.writeUInt32LE(blockHeader.prevBlock_Hash);
-    serializedBlockHeader.push(...prevBlock_HashBytes);
-
-    const merkleRoot_Bytes = Buffer.alloc(32);
-    merkleRoot_Bytes.writeUInt32LE(blockHeader.result);
-    serializedBlockHeader.push(...merkleRoot_Bytes);
-
-    const timestamp_Bytes = Buffer.alloc(4);
-    timestamp_Bytes.writeUInt32LE(blockHeader.timestamp);
-    serializedBlockHeader.push(...timestamp_Bytes);
-
-    const bits_bytes = Buffer.alloc(4);
-    bits_bytes.writeUInt32LE(blockHeader.bits);
-    serializedBlockHeader.push(...bits_bytes);
-
-    const nonce_bytes = Buffer.alloc(4);
-    nonce_bytes.writeUInt32LE(blockHeader.nonce);
-    serializedBlockHeader.push(...nonce_bytes);
-
-
-    const serializedBlockHeaderHex = serializedBlockHeader.map(byte => {
-        return byte.toString(16).padStart(2, '0');
-    }
-    ).join('');
-
-    const blockHeaderHash = doubleSHA256(Buffer.from(serializedBlockHeaderHex, 'hex'));
-
-    return blockHeaderHash;
 }
 
 function mined(timestamp, bits, prevBlock_Hash, result, nonce) {
