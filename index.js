@@ -2,8 +2,10 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const ripemd160 = require('ripemd160');
-const bech32 = require('bech32');
-
+const {bech32} = require('bech32');
+const { ec } = require('elliptic');
+const sha256 = require('js-sha256');
+const { Buffer } = require('buffer');
 
 const mempool_dir = 'mempool';
 
@@ -68,7 +70,7 @@ function processMempoolFromFiles() {
         const filepath = path.join(MEMPOOL_DIR, filename);
         const data = fs.readFileSync(filepath, 'utf8');
         const transaction = JSON.parse(data);
-
+        
         if (Locktime_validaion(transaction) && Transaction_Validation(transaction)) {  
             let valid = 1;
             for (let index = 0; index < transaction.vin.length; index++) {
@@ -76,6 +78,7 @@ function processMempoolFromFiles() {
                 try {
                     if (vin.prevout.scriptpubkey_type === 'p2pkh') {
                         if (!verifyP2PKHTransaction(vin, transaction, index)) {
+                            console.log(verifyP2PKHTransaction(vin, transaction, index));
                             valid = 0;
                             break;
                         }
@@ -106,6 +109,7 @@ function processMempoolFromFiles() {
                     }
                 } catch (e) {
                     valid = 0;
+                    console.log(e);
                     break;
                 }
             }
@@ -272,7 +276,7 @@ function verifyP2WPKHTransaction(vin, transaction, index) {
 
     const expectedPubkeyHash = Buffer.from(scriptPubKey.slice(4), 'hex');
 
-    if (!ripemd160Pubkey.equals(expectedPubkeyHash)) {
+    if (ripemd160Pubkey !== expectedPubkeyHash) {
         return false;
     }
 
@@ -376,15 +380,16 @@ function verifyP2PKHTransaction(vin, transaction, index) {
     const expectedPubkeyHash = scriptPubKey.slice(6, 46); 
 
 
-    if (!ripemd160Pubkey.equals(Buffer.from(expectedPubkeyHash, 'hex'))) {
+    if (ripemd160Pubkey.toString('hex') !== expectedPubkeyHash) {
         return false;
-    }
+    }    
 
     const decodedPubkeyHash = base58checkDecode(providedAddress);
 
-    if (!ripemd160Pubkey.equals(decodedPubkeyHash)) {
+    if (ripemd160Pubkey.toString('hex') !== decodedPubkeyHash.toString('hex')) {
         return false;
     }
+    
 
     let isSignatureValid = true;
     const sighashType = signatureHex.slice(-2);
@@ -480,26 +485,29 @@ function computeSighashAnyoneCanPayAll(transaction, inputIndex) {
 
 
 function verifySignature(pubkeyHex, signatureDerHex, messageHex) {
+    // Decode hex strings
     const pubkeyBytes = Buffer.from(pubkeyHex, 'hex');
     const signatureDerBytes = Buffer.from(signatureDerHex, 'hex');
-    const messageHashBytes = Buffer.from(messageHex, 'hex');
+    const messageHashBytes = Buffer.from(messageHex, 'hex'); // Assuming this is the double SHA-256 hash
 
-    const vk = new ECKey(pubkeyBytes, 'hex');
+    // Create an elliptic curve object (SECP256k1)
+    const ecCurve = new ec('secp256k1');
 
-    const parsedSignature = jrs.fromDER(signatureDerBytes);
-    const r = parsedSignature.r;
-    const s = parsedSignature.s;
+    // Create a public key object
+    const vk = ecCurve.keyFromPublic(pubkeyBytes, 'hex');
 
-    const signatureBytes = Buffer.concat([Buffer.from(r.toString(16), 'hex'), Buffer.from(s.toString(16), 'hex')]);
+    // Parse the DER-encoded signature to obtain the raw signature (r and s values)
+    const signature = ecCurve.signatureFromDER(signatureDerBytes);
 
+    // Verify the signature
     try {
-        const is_valid = vk.verify(messageHashBytes, signatureBytes);
-        return is_valid;
-    } catch (e) {
+        const isVerified = vk.verify(messageHashBytes, signature);
+        return isVerified;
+    } catch (error) {
+        console.error(error);
         return false;
     }
 }
-
 
 function verifyP2SHP2WPKHTransaction(vin, transaction, index) {
     const scriptSig = vin.scriptsig;
